@@ -1846,12 +1846,25 @@
           }
         }
 
+        function cancelModalSizeChange(modal) {
+          if (!modal) {
+            return;
+          }
+
+          modal.sc1SizeChangeCancelled = true;
+          if (modal.sc1SizeChangeObserver) {
+            modal.sc1SizeChangeObserver.disconnect();
+            modal.sc1SizeChangeObserver = null;
+          }
+        }
+
         function closeProductModal(modal) {
           if (!modal) {
             releaseModalLock();
             return;
           }
 
+          cancelModalSizeChange(modal);
           modal.style.setProperty("display", "none", "important");
           modal.classList.remove("is-active", "is-block");
           releaseModalLock();
@@ -2397,7 +2410,7 @@
                     var modalFrame = doc.defaultView && doc.defaultView.frameElement;
                     var modalWrapper = modalFrame && modalFrame.closest(".shopify-buy-modal-wrapper");
                     var restoreModalAfterSizeChange = function () {
-                      if (!modalWrapper || !modalWrapper.isConnected) {
+                      if (!modalWrapper || !modalWrapper.isConnected || modalWrapper.sc1SizeChangeCancelled) {
                         return;
                       }
                       modalWrapper.classList.add("is-active", "is-block");
@@ -2405,10 +2418,14 @@
                     };
                     var keepModalOpenObserver = null;
                     if (modalWrapper) {
+                      modalWrapper.sc1SizeChangeCancelled = false;
                       if (modalWrapper.sc1SizeChangeObserver) {
                         modalWrapper.sc1SizeChangeObserver.disconnect();
                       }
                       keepModalOpenObserver = new MutationObserver(function () {
+                        if (modalWrapper.sc1SizeChangeCancelled) {
+                          return;
+                        }
                         if (!modalWrapper.classList.contains("is-active") || !modalWrapper.classList.contains("is-block")) {
                           modalWrapper.classList.add("is-active", "is-block");
                         }
@@ -2584,8 +2601,12 @@
             if (button.dataset.sc1UnlockBound !== "true") {
               button.dataset.sc1UnlockBound = "true";
               var queueModalCleanup = function () {
+                var modalFrame = doc.defaultView && doc.defaultView.frameElement;
+                var modalWrapper = modalFrame && modalFrame.closest(".shopify-buy-modal-wrapper");
+                cancelModalSizeChange(modalWrapper);
                 window.setTimeout(function () {
                   document.querySelectorAll(".shopify-buy-modal-wrapper.is-active").forEach(function (wrapper) {
+                    cancelModalSizeChange(wrapper);
                     wrapper.classList.remove("is-active", "is-block");
                   });
                   releaseModalLock();
